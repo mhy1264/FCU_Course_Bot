@@ -1,3 +1,5 @@
 # captcha File
 *.png 
 
+# private file 
+*.ini

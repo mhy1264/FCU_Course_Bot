@@ -1,3 +1,4 @@
+import json
 import os
 import time
 import requests
@@ -101,6 +102,81 @@ class Bot:
 
         self.log(self.course)
 
+    def getCourseName(self,courseMsg):
+        
+        # 設定 Header 
+        headers = {
+            "Accept": "*/*",
+            "Accept-Language": 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7,ja;q=0.6',
+            "DNT": "1",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Site": "same-origin",
+            "Content-Type":"application/json; charset=UTF-8",
+            "user-agent": "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3573.0 Safari/537.36",
+            }
+
+
+        selcode = courseMsg[-5:-1]
+        
+        payload = {
+            "baseOptions":{ 
+                "lang":"cht",
+                "year":"108",
+                "sms":"2"
+                },
+            "typeOptions":{
+                "code":{             # 選課代號
+                    "enabled":"true",
+                    "value":selcode
+                    },
+                "weekPeriod":{
+                    "enabled":"false",
+                    "week":"*",      # 星期 */1/2/../7
+                    "period":"*"     # 節次 */0/1/2/../14
+                    },
+                "course":{           # 科目名稱
+                    "enabled":"false",
+                    "value":""
+                    },
+                "teacher":{          # 開課教師姓名
+                    "enabled":"false",
+                    "value":""
+                    },
+                "useEnglish":{       # 全英語授課
+                    "enabled":"false"
+                    },
+                "useLanguage":{      # 授課語言
+                    "enabled":"false",
+                    "value":"01"     # 01：中文 02：英語 03：日語 04：德語 05：法語 06：西班牙語 07：其他 08：中英
+                    },
+                "specificSubject":{  # 特定科目
+                    "enabled":"false",
+                    "value":"1"      # 1：通識課程 2：體育選項課程 3：大學國文
+                    },
+                "courseDescription":{# 課程描述
+                    "enabled":"false",
+                    "value":""
+                    }
+                }
+            }
+
+        payload = json.dumps(payload)
+
+        url = "https://coursesearch03.fcu.edu.tw/Service/Search.asmx/GetType2Result"
+
+        r = requests.post(url,headers=headers,data = payload)  
+        r = r.text                                             
+
+        r = r.replace('\\"','"' )
+        r = r.replace(':"{',': {' )
+        r = r.replace('}]}"}','}]}}')
+
+        r = json.loads(r) 
+
+        return r['d']['items'][0]['sub_name']
+
+
+
     def sel(self):
 
       # get aspnet element 
@@ -155,10 +231,14 @@ class Bot:
             parser = bs(selHtml.text,'lxml')
             msg = parser.find(id = "ctl00_MainContent_TabContainer1_tabSelected_lblMsgBlock").text
 
-            self.log(msg)
+            courseName = self.getCourseName(msg)
+            self.log("{} {} ===> {}".format(msg[-5:-1],courseName,msg[:-11]))
 
             if("加選成功" in msg):
               self.course.remove(course)
+            elif("不可超修" in msg):
+                exit(0)
+                
             time.sleep(self.delayTime)
           
     
